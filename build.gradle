@@ -1,0 +1,85 @@
+plugins {
+    id 'scala'
+    id 'com.github.johnrengelman.shadow' version '7.1.0' // Replace with the desired version
+}
+
+apply from: file("./gradle/dependency-versions-scala-${scalaVersion}.gradle")
+
+configure(subprojects) { subproject ->
+
+    apply plugin: "scala"
+    apply plugin: "com.github.johnrengelman.shadow"
+
+
+    def maven_repo_props = new Properties()
+    if (project.hasProperty('maven_profile')) {
+        project.file("${rootDir}/gradle/repository-profiles/${maven_profile}.properties").withInputStream { maven_repo_props.load(it) }
+    }
+
+    if ( maven_repo_props.use_public_repos == "true" ) {
+        repositories {
+            mavenCentral()
+            maven { url "https://plugins.gradle.org/m2/" }
+            maven { url "https://repo.spring.io/milestone" }
+            maven { url "https://artifacts.elastic.co/maven" }
+            maven { url "https://build.shibboleth.net/nexus/content/repositories/releases/" }
+            // maven { url "http://repository.mulesoft.org/releases/"}
+            maven { url "https://repos.spark-packages.org/" }
+        }
+    }
+    repositories {
+        mavenLocal()
+        maven {
+            url project.hasProperty('maven_url') ? project.getProperty('maven_url')
+            allowInsecureProtocol = true
+            authentication {
+                basic(BasicAuthentication)
+            }
+            credentials {
+                username project.hasProperty('maven_user') ? project.getProperty('maven_user') : "DefaultCollection"
+                password project.hasProperty('maven_password') ? project.getProperty('maven_password') : ""
+            }
+        }
+    }
+
+    dependencies {
+        implementation "org.scala-lang:scala-library:2.12.17" // Replace with your desired Scala version
+
+        implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.8.0'
+        implementation group: 'org.apache.kafka', name: 'kafka-streams', version: '2.8.0'
+        implementation group: 'org.apache.kafka', name: 'kafka-streams-scala_2.12', version: '2.8.0'
+        implementation group: 'io.circe', name: 'circe-core_2.12', version: '0.14.1'
+        implementation group: 'io.circe', name: 'circe-generic_2.12', version: '0.14.1'
+        implementation group: 'io.circe', name: 'circe-parser_2.12', version: '0.14.1'
+        implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
+        implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
+
+//        // Add Spring Boot and Spring Kafka dependencies
+        implementation group: 'org.springframework.boot', name: 'spring-boot-starter', version: '2.5.12'
+        implementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.7.14'
+    }
+
+    jar {
+        baseName = "${subproject.name}_$scalaVersion"
+        version = "$version"
+
+        manifest.attributes["Implementation-Title"] = subproject.name
+        manifest.attributes["Implementation-Version"] = subproject.version
+        manifest.attributes["Created-By"] = "Gradle ${gradle.gradleVersion}"
+        manifest.attributes["Build-Jdk"] = "${System.getProperty("java.version")} (${System.getProperty("java.specification.vendor")})"
+    }
+
+    shadowJar {
+        baseName = "${subproject.name}_$scalaVersion"
+        version = "$version"
+
+        manifest.attributes["Implementation-Title"] = subproject.name
+        manifest.attributes["Implementation-Version"] = subproject.version
+        manifest.attributes["Created-By"] = "Gradle ${gradle.gradleVersion}"
+        manifest.attributes["Build-Jdk"] = "${System.getProperty("java.version")} (${System.getProperty("java.specification.vendor")})"
+        configurations = [subproject.configurations.compileClasspath]
+
+    }
+
+
+}
